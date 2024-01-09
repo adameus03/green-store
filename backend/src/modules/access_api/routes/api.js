@@ -3,36 +3,72 @@ const fs = require('fs');
 const path = require('path')
 const formidable = require('formidable');
 const httpStatusCodes = require('http-status-codes');
+const StatusCodes = httpStatusCodes.StatusCodes;
+const db = require("../database.js");
+const validator = require('../validator.js');
 
 var router = express.Router();
 
-router.get('/products', (req, res, next) => {
-  res.send("All products");
-  
+router.get('/products', async (req, res, next) => {
+  console.log("All products");
+  const products = await db.Product.findAll();
+  res.status(StatusCodes.OK).json(products);
 });
 
 router.get('/products/:id', (req, res, next) => {
-  res.send("Product with id " + req.params.id);
+  console.log("Product with id " + req.params.id);
 });
 
 router.post('/products', (req, res, next) => {
-  res.send("Create product");
+  console.log("Create product");
+  let validationResult = validator.validateProduct(req.body.name, req.body.description, req.body.price, req.body.weight);
+  if(validationResult.error) {
+    res.status(StatusCodes.BAD_REQUEST).json({message: validationResult.error.details[0].message});
+    //res.status(StatusCodes.BAD_REQUEST).json(validationResult);
+  }
+  // Check if category exists and find its id
+  else if (req.body.category) {
+    db.Category.findOne({where: {name: req.body.category}}).then(category => {
+      if(category) {
+        db.Product.create({
+          name: req.body.name,
+          description: req.body.description,
+          price: req.body.price,
+          weight: req.body.weight,
+          category_id: category.category_id
+        }).then(product => {
+          res.status(StatusCodes.CREATED).json(product);
+        }).catch(err => {
+          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+        });
+      }
+      else {
+        res.status(StatusCodes.BAD_REQUEST).json({message: "Category does not exist"});
+      }
+    }).catch(err => {
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+    });
+  }
+  else {
+    // Category was not provided -> error
+    res.status(StatusCodes.BAD_REQUEST).json({message: "Category was not provided"});
+  }
 });
 
 router.put('/products/:id', (req, res, next) => {
-  res.send("Update product with id " + req.params.id);
+  console.log("Update product with id " + req.params.id);
 });
 
 router.get('/categories', (req, res, next) => {
-  res.send("All categories");
+  console.log("All categories");
 });
 
 router.get("/orders", (req, res, next) => {
-  res.send("All orders");
+  console.log("All orders");
 });
 
 router.post("/orders", (req, res, next) => {
-  res.send("Create order");
+  console.log("Create order");
 });
 
 router.patch("/orders/:id", (req, res, next) => {

@@ -4,7 +4,8 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
 var cors = require('cors');
-var expressLayouts = require('express-ejs-layouts'); 
+//var expressLayouts = require('express-ejs-layouts'); 
+var bodyParser = require('body-parser');
 
 
 var indexRouter = require('./routes/index');
@@ -18,11 +19,12 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors());
-app.use(expressLayouts);
+//app.use(expressLayouts);
+app.use(bodyParser.urlencoded({ extended: true }));
 
-app.engine('html', require('ejs').renderFile);
-app.set("views", "./public");
-app.set('view engine', 'ejs');
+//app.engine('html', require('ejs').renderFile);
+//app.set("views", "./public");
+//app.set('view engine', 'ejs');
 
 //app.use("/access/users", accessUsers.router); //garbage
 //app.use(accessUsers.checkLogin); //garbage
