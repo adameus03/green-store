@@ -1,0 +1,31 @@
+version: '3'
+services:
+  ecoserver:
+    build: 
+      context: .
+      args:
+        expose_port: ${GSTR_SERVER_IN_PORT}
+
+    image: gstrcloud.azurecr.io/gstr-cloud-backend
+    domainname: gstr-cloudstore
+    #environment:
+    #  DB_SCHEMA: postgres
+    #  DB_USER: postgres
+    #  DB_PASSWORD: postgres
+    #  DB_HOST: postgres
+    #depends_on:
+      #- postgres
+      #- alpine
+    ports:
+      - "${GSTR_SERVER_OUT_PORT}:${GSTR_SERVER_IN_PORT}"
+      #- 3000:3000
+    volumes: 
+      - gstr-db:/gstrpers
+        
+volumes:
+  gstr-db:
+    #driver: azure_file
+    #driver_opts:
+    #  share_name: gstracishare
+    #  storage_account_name: gstrvolumesstorage1
+
