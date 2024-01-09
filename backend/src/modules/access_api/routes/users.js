@@ -42,7 +42,7 @@ router.get("/logout", async (req, res, next) => {
 		await instance.destroy();
 	}
 	res.clearCookie("login_id");
-	res.redirect("/umm/users/login");
+	res.redirect("/access/users/login");
 	res.end();
 })
 
@@ -66,15 +66,15 @@ router.post("/login", async (req, res, next) => {
 				});
 				res.redirect("/");
 			} else {
-				res.redirect("/umm/users/login");
+				res.redirect("/access/users/login");
 				console.log(`Incorrect user password for {user.username}`);
 			}
 		} else {
-			res.redirect("/umm/users/register");
+			res.redirect("/access/users/register");
 			console.log("Trying to create existing user");
 		}
 	} else {
-		res.redirect("/umm/users/login");
+		res.redirect("/access/users/login");
 		console.log("Login: One of needed fields was missing");
 	}
 	res.end();
@@ -91,14 +91,14 @@ async function checkLogin(req, res, next) {
 		const id = req.cookies["login_id"];
 		const login = await db.LoginInstance.findByPk(id);
 		if (!login) {
-			res.redirect("/umm/users/login");
+			res.redirect("/access/users/login");
 			res.end();
 		} else {
 			next();
 		}
 		return
 	}
-	res.redirect("/umm/users/login");
+	res.redirect("/access/users/login");
 	res.end();
 }
 

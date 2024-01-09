@@ -9,8 +9,8 @@ var expressLayouts = require('express-ejs-layouts');
 
 var indexRouter = require('./routes/index');
 
-const ummAPI = require('./modules/user_management/routes/api.js');
-const ummUsers = require('./modules/user_management/routes/users.js');
+const accessAPI = require('./modules/access_api/routes/api.js');
+//const accessUsers = require('./modules/access_api/routes/users.js'); //garbage
 
 var app = express();
 
@@ -24,10 +24,10 @@ app.engine('html', require('ejs').renderFile);
 app.set("views", "./public");
 app.set('view engine', 'ejs');
 
-app.use("/umm/users", ummUsers.router);
-app.use(ummUsers.checkLogin);
+//app.use("/access/users", accessUsers.router); //garbage
+//app.use(accessUsers.checkLogin); //garbage
 
 app.use('/', indexRouter);
-app.use("/umm/api", ummAPI.router);
+app.use("/access/api", accessAPI.router);
 
 module.exports = app;
