@@ -133,7 +133,7 @@ const Order = sequelize.define('Order', {
         type: DataTypes.DATE,
         allowNull: true
     },
-    state: {
+    state_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
