@@ -24,8 +24,8 @@ services:
         
 volumes:
   gstr-db:
-    #driver: azure_file
-    #driver_opts:
-    #  share_name: gstracishare
-    #  storage_account_name: gstrvolumesstorage1
+    driver: azure_file
+    driver_opts:
+      share_name: gstracishare
+      storage_account_name: gstrvolumesstorage1
 
