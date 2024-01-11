@@ -18,7 +18,10 @@ var app = express();
 app.use(logger('dev'));
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:8080',
+    credentials: true
+}));
 //app.use(expressLayouts);
 app.use(bodyParser.urlencoded({ extended: true }));
 
