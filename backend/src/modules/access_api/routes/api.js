@@ -5,6 +5,7 @@
  * @todo Set confirmation date to current date when order is confirmed; set to null when order is cancelled?
  * @maybe_todo Verify if any additonal awaits are needed
  * @maybe_todo Verify error handling
+ * @todo VALIDATE Product_Order in POST orders
 */
 
 var express = require('express');
@@ -27,13 +28,15 @@ router.get('/products', async (req, res, next) => {
 
 router.get('/products/:id', (req, res, next) => {
   console.log("Product with id " + req.params.id);
-  const product = db.Product.findByPk(req.params.id);
-  if (product) {
-    res.status(StatusCodes.OK).json(product);
-  }
-  else {
-    res.status(StatusCodes.NOT_FOUND).json({message: "Product does not exist"});
-  }
+  db.Product.findByPk(req.params.id).then(product => {
+    if (product) {
+      res.status(StatusCodes.OK).json(product);
+    }
+    else {
+      res.status(StatusCodes.NOT_FOUND).json({message: "Product does not exist"});
+    }
+  });
+  
 });
 
 router.post('/products', (req, res, next) => {
@@ -92,9 +95,8 @@ router.put('/products/:id', (req, res, next) => {
           weight: req.body.weight,
           category_id: category.category_id
         }, {where: {product_id: req.params.id}}).then(product => {
-          //if(product[0] == 0)
-          if(product) {
-            res.status(StatusCodes.OK).json(product);
+          if(product[0] == 1) {
+            res.status(StatusCodes.OK).json({message: "success"});
           }
           else {
             res.status(StatusCodes.NOT_FOUND).json({message: "Product does not exist"});
@@ -130,6 +132,7 @@ router.get("/orders", (req, res, next) => {
 
 router.post("/orders", (req, res, next) => {
   // Params: userID, products
+  // product is an array of { product_id, quantity }
   console.log("Create order");
   // Check parameters
   if (!req.body.userID) {
@@ -146,10 +149,25 @@ router.post("/orders", (req, res, next) => {
     if(user) {
       // Check if products exist, if not return error
       let productsExist = true;
-      for(let i = 0; i < req.body.products.length; i++) {
-        await db.Product.findByPk(req.body.products[i].product_id).then(product => {
+      let products = JSON.parse(req.body.products);
+      for(let i = 0; i < products.length; i++) {
+        await db.Product.findByPk(products[i].product_id).then(product => {
           if(!product) {
+            console.log(`Index [${i}]`);
+            console.log(products[i]);
+            console.log("Product with id " + products[i].product_id + " does not exist");
             productsExist = false;
+          }
+          // Check if quantity is a positive integer, if not return error
+          /**
+           * @proposition Migrate to validator.js
+           */
+          else if (products[i].quantity <= 0 || !Number.isInteger(products[i].quantity)) { // Not a beautiful solution, but it works
+            console.log(`Index [${i}]`);
+            console.log(products[i]);
+            console.log("Product with id " + products[i].product_id + " has invalid quantity");
+            res.status(StatusCodes.BAD_REQUEST).json({message: "One or more products have invalid quantity"});
+            return; // Exit loop
           }
         }).catch(err => {
           res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
@@ -168,11 +186,11 @@ router.post("/orders", (req, res, next) => {
           /**
            * @proposition Replace, so that await is not used
            */
-          for(let i = 0; i < req.body.products.length; i++) {
+          for(let i = 0; i < products.length; i++) {
             await db.Product_Order.create({
               order_id: order.order_id,
-              product_id: req.body.products[i].product_id,
-              quantity: req.body.products[i].quantity
+              product_id: products[i].product_id,
+              quantity: products[i].quantity
             }).catch(err => {
               res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
             });
@@ -192,14 +210,42 @@ router.post("/orders", (req, res, next) => {
   }).catch(err => {
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
   });
+  
+});
 
+router.get("/orders/:id", (req, res, next) => {
+
+  console.log("Order with id " + req.params.id);
+  db.Order.findByPk(req.params.id).then(async order => {
+    if (order) {
+      /**
+       * @proposition Archivize products in order, so that the price and weight of the product at the time of order creation is saved
+       */
+      // Append products to order
+      db.Product_Order.findAll({where: {order_id: req.params.id}}).then(async orderItems => {
+        order.dataValues.products = [];
+        for(let i = 0; i < orderItems.length; i++) {
+          await db.Product.findByPk(orderItems[i].product_id).then(product => {
+            order.dataValues.products.push({product_id: product.product_id, quantity: orderItems[i].quantity});
+          }).catch(err => {
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+          });
+        }
+        //console.log(order);
+        res.status(StatusCodes.OK).json(order);
+      });
+    }
+    else {
+      res.status(StatusCodes.NOT_FOUND).json({message: "Order does not exist"});
+    }
+  });
 });
 
 router.patch("/orders/:id", (req, res, next) => {
-  res.send("Update order with id " + req.params.id);
+  console.log("Update order with id " + req.params.id);
   // Update order using JSON patch or return an error if order does not exist
   db.Order.findByPk(req.params.id).then(async rawOrder => {
-    if(rawOorder) {
+    if(rawOrder) {
       // Get raw order state name
       let beforeUpdateStateName = await db.State.findByPk(rawOrder.state_id).then(state => state.name);
       let order = { userID: rawOrder.user_id, state: beforeUpdateStateName, products: []};
@@ -217,23 +263,40 @@ router.patch("/orders/:id", (req, res, next) => {
       // Use JSON PATCH
       let mockOrder = fastJsonPatch.applyPatch(order, req.body).newDocument;
       // Validate change from order to mockOrder
-      let validationResult = validator.validateOrderChange(order, mockOrder);
+      console.log("Before patch validation");
+      let validationResult = await validator.validateOrderChange(order, mockOrder); //AWAIT!
+      console.log("After patch validation");
       // If change is valid, update order, else return error
       if(validationResult.error) {
-        res.status(StatusCodes.BAD_REQUEST).json({message: validationResult.error.details[0].message});
+        console.log("Patch validation error");
+        res.status(StatusCodes.BAD_REQUEST).json(validationResult);
       }
       else {
+        console.log("Patch validation succeeded");
+        console.log(`validationResult: ${validationResult}`);
         let afterUpdateStateId = await db.State.findOne({where: {name: mockOrder.state}}).then(state => state.state_id);
+        // Update order items
+        for (let i = 0; i < mockOrder.products.length; i++) {
+          await db.Product_Order.update({
+            product_id: mockOrder.products[i].product_id,
+            quantity: mockOrder.products[i].quantity
+          }, {where: {order_id: req.params.id, product_id: mockOrder.products[i].product_id}}).catch(err => {
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+          });
+        }
+        console.log(`Old user id for order: ${order.userID}`);
+        console.log(`New user id for order: ${mockOrder.userID}`);
         db.Order.update({
           // set current date if this is a confirmation
           confirmation_date: (mockOrder.state_id == 2) ? new Date() : rawOrder.confirmation_date,
           state_id: afterUpdateStateId,
           user_id: mockOrder.userID
         }, {where: {order_id: req.params.id}}).then(order => {
-          res.status(StatusCodes.OK).json(order);
+          res.status(StatusCodes.OK).json({message: "success"});
         }).catch(err => {
           res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
         });
+        
       }
     }
     else {
@@ -243,14 +306,22 @@ router.patch("/orders/:id", (req, res, next) => {
 
 });
 
-router.get("/orders/:status/id", (req, res, next) => {
-  res.send("All orders with status " + req.params.status);
-  db.Order.findAll({where: {state_id: req.params.status}}).then(orders => res.status(StatusCodes.OK).json(orders))
-  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
+router.get("/orders/:status/id", async (req, res, next) => {
+  console.log("All orders with status " + req.params.status);
+  await db.State.findOne({where: {name: req.params.status }}).then(stateId => {
+    if (stateId) {
+      db.Order.findAll({where: {state_id: stateId}}).then(orders => res.status(StatusCodes.OK).json(orders))
+      .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
+    }
+    else {
+      res.status(StatusCodes.BAD_REQUEST).json({message: "Invalid state queried"});//<<<<
+    }
+  });
+  
 });
 
 router.get("/status", (req, res, next) => {
-  res.send("All statuses");
+  console.log("All statuses");
   db.State.findAll().then(states => res.status(StatusCodes.OK).json(states))
   .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
 });
@@ -273,6 +344,14 @@ router.post("/users", (req, res, next) => {
       res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
     });
   }
+});
+
+router.get("/users", (req, res, next) => {
+  
+  console.log("All users");
+  
+  db.Person.findAll().then(users => res.status(StatusCodes.OK).json(users))
+  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
 });
 
 
