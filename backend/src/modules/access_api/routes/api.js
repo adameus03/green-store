@@ -33,7 +33,7 @@ router.get('/products/:id', (req, res, next) => {
       res.status(StatusCodes.OK).json(product);
     }
     else {
-      res.status(StatusCodes.NOT_FOUND).json({message: "Product does not exist"});
+      res.status(StatusCodes.NOT_FOUND).json({error: "Product does not exist"});
     }
   });
   
@@ -43,7 +43,7 @@ router.post('/products', (req, res, next) => {
   console.log("Create product");
   let validationResult = validator.validateProduct(req.body.name, req.body.description, req.body.price, req.body.weight);
   if(validationResult.error) {
-    res.status(StatusCodes.BAD_REQUEST).json({message: validationResult.error.details[0].message});
+    res.status(StatusCodes.BAD_REQUEST).json({error: validationResult.error.details[0].message});
     //res.status(StatusCodes.BAD_REQUEST).json(validationResult);
   }
   // Check if category exists and find its id
@@ -59,19 +59,19 @@ router.post('/products', (req, res, next) => {
         }).then(product => {
           res.status(StatusCodes.CREATED).json(product);
         }).catch(err => {
-          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
         });
       }
       else {
-        res.status(StatusCodes.BAD_REQUEST).json({message: "Category does not exist"});
+        res.status(StatusCodes.BAD_REQUEST).json({error: "Category does not exist"});
       }
     }).catch(err => {
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
     });
   }
   else {
     // Category was not provided -> error
-    res.status(StatusCodes.BAD_REQUEST).json({message: "Category was not provided"});
+    res.status(StatusCodes.BAD_REQUEST).json({error: "Category was not provided"});
   }
 });
 
@@ -79,7 +79,7 @@ router.put('/products/:id', (req, res, next) => {
   console.log("Update product with id " + req.params.id);
   let validationResult = validator.validateProduct(req.body.name, req.body.description, req.body.price, req.body.weight);
   if(validationResult.error) {
-    res.status(StatusCodes.BAD_REQUEST).json({message: validationResult.error.details[0].message});
+    res.status(StatusCodes.BAD_REQUEST).json({error: validationResult.error.details[0].message});
     //res.status(StatusCodes.BAD_REQUEST).json(validationResult);
   }
   // Check if category exists and find its id
@@ -99,35 +99,35 @@ router.put('/products/:id', (req, res, next) => {
             res.status(StatusCodes.OK).json({message: "success"});
           }
           else {
-            res.status(StatusCodes.NOT_FOUND).json({message: "Product does not exist"});
+            res.status(StatusCodes.NOT_FOUND).json({error: "Product does not exist"});
           }
         }).catch(err => {
-          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
         });
       }
       else {
-        res.status(StatusCodes.BAD_REQUEST).json({message: "Category does not exist"});
+        res.status(StatusCodes.BAD_REQUEST).json({error: "Category does not exist"});
       }
     }).catch(err => {
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
     });
   }
   else {
     // Category was not provided -> error
-    res.status(StatusCodes.BAD_REQUEST).json({message: "Category was not provided"});
+    res.status(StatusCodes.BAD_REQUEST).json({error: "Category was not provided"});
   }
 });
 
 router.get('/categories', (req, res, next) => {
   console.log("All categories");
   db.Category.findAll().then(categories => res.status(StatusCodes.OK).json(categories))
-  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
+  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
 router.get("/orders", (req, res, next) => {
   console.log("All orders");
   db.Order.findAll().then(orders => res.status(StatusCodes.OK).json(orders))
-  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
+  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
 router.post("/orders", (req, res, next) => {
@@ -136,11 +136,11 @@ router.post("/orders", (req, res, next) => {
   console.log("Create order");
   // Check parameters
   if (!req.body.userID) {
-    res.status(StatusCodes.BAD_REQUEST).json({message: "User ID was not provided"});
+    res.status(StatusCodes.BAD_REQUEST).json({error: "User ID was not provided"});
   } else if (!req.body.products) {
-    res.status(StatusCodes.BAD_REQUEST).json({message: "Products were not provided"});
+    res.status(StatusCodes.BAD_REQUEST).json({error: "Products were not provided"});
   } else if (req.body.products.length == 0) {
-    res.status(StatusCodes.BAD_REQUEST).json({message: "Please provide at least one product"});
+    res.status(StatusCodes.BAD_REQUEST).json({error: "Please provide at least one product"});
   }
 
   //let validationResult = validator.validateOrder(req.body.userID, req.body.products);
@@ -166,11 +166,11 @@ router.post("/orders", (req, res, next) => {
             console.log(`Index [${i}]`);
             console.log(products[i]);
             console.log("Product with id " + products[i].product_id + " has invalid quantity");
-            res.status(StatusCodes.BAD_REQUEST).json({message: "One or more products have invalid quantity"});
+            res.status(StatusCodes.BAD_REQUEST).json({error: "One or more products have invalid quantity"});
             return; // Exit loop
           }
         }).catch(err => {
-          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
         });
         if (!productsExist) {
           break;
@@ -192,23 +192,23 @@ router.post("/orders", (req, res, next) => {
               product_id: products[i].product_id,
               quantity: products[i].quantity
             }).catch(err => {
-              res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+              res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
             });
           }
           res.status(StatusCodes.CREATED).json(order);
         }).catch(err => {
-          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
         });
       }
       else {
-        res.status(StatusCodes.BAD_REQUEST).json({message: "One or more products do not exist"});
+        res.status(StatusCodes.BAD_REQUEST).json({error: "One or more products do not exist"});
       }
     }
     else {
-      res.status(StatusCodes.BAD_REQUEST).json({message: "User does not exist"});
+      res.status(StatusCodes.BAD_REQUEST).json({error: "User does not exist"});
     }
   }).catch(err => {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
   });
   
 });
@@ -228,7 +228,7 @@ router.get("/orders/:id", (req, res, next) => {
           await db.Product.findByPk(orderItems[i].product_id).then(product => {
             order.dataValues.products.push({product_id: product.product_id, quantity: orderItems[i].quantity});
           }).catch(err => {
-            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
           });
         }
         //console.log(order);
@@ -236,7 +236,7 @@ router.get("/orders/:id", (req, res, next) => {
       });
     }
     else {
-      res.status(StatusCodes.NOT_FOUND).json({message: "Order does not exist"});
+      res.status(StatusCodes.NOT_FOUND).json({error: "Order does not exist"});
     }
   });
 });
@@ -255,7 +255,7 @@ router.patch("/orders/:id", (req, res, next) => {
           await db.Product.findByPk(orderItems[i].product_id).then(product => {
             order.products.push({product_id: product.product_id, quantity: orderItems[i].quantity});
           }).catch(err => {
-            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
           });
         }
       });
@@ -281,7 +281,7 @@ router.patch("/orders/:id", (req, res, next) => {
             product_id: mockOrder.products[i].product_id,
             quantity: mockOrder.products[i].quantity
           }, {where: {order_id: req.params.id, product_id: mockOrder.products[i].product_id}}).catch(err => {
-            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
           });
         }
         console.log(`Old user id for order: ${order.userID}`);
@@ -294,13 +294,13 @@ router.patch("/orders/:id", (req, res, next) => {
         }, {where: {order_id: req.params.id}}).then(order => {
           res.status(StatusCodes.OK).json({message: "success"});
         }).catch(err => {
-          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
         });
         
       }
     }
     else {
-      res.status(StatusCodes.NOT_FOUND).json({message: "Order does not exist"});
+      res.status(StatusCodes.NOT_FOUND).json({error: "Order does not exist"});
     }
   });
 
@@ -312,10 +312,10 @@ router.get("/orders/:status/id", async (req, res, next) => {
     let stateId = state.state_id;
     if (stateId) {
       db.Order.findAll({where: {state_id: stateId}}).then(orders => res.status(StatusCodes.OK).json(orders))
-      .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
+      .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
     }
     else {
-      res.status(StatusCodes.BAD_REQUEST).json({message: "Invalid state queried"});//<<<<
+      res.status(StatusCodes.BAD_REQUEST).json({error: "Invalid state queried"});//<<<<
     }
   });
   
@@ -324,14 +324,14 @@ router.get("/orders/:status/id", async (req, res, next) => {
 router.get("/status", (req, res, next) => {
   console.log("All statuses");
   db.State.findAll().then(states => res.status(StatusCodes.OK).json(states))
-  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
+  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
 router.post("/users", (req, res, next) => {
   console.log("Create user");
   let validationResult = validator.validateUser(req.body.username, req.body.password, req.body.email, req.body.phone_number);
   if(validationResult.error) {
-    res.status(StatusCodes.BAD_REQUEST).json({message: validationResult.error.details[0].message});
+    res.status(StatusCodes.BAD_REQUEST).json({error: validationResult.error.details[0].message});
   }
   else {
     db.Person.create({
@@ -342,7 +342,7 @@ router.post("/users", (req, res, next) => {
     }).then(user => {
       res.status(StatusCodes.CREATED).json(user);
     }).catch(err => {
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message});
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
     });
   }
 });
@@ -352,7 +352,7 @@ router.get("/users", (req, res, next) => {
   console.log("All users");
   
   db.Person.findAll().then(users => res.status(StatusCodes.OK).json(users))
-  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
+  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
 
