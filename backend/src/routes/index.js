@@ -7,6 +7,12 @@ router.get('/', function(req, res, next) {
   res.send("Index");
 });
 
+router.get('/products', function(req, res, next) {
+  //res.render('index.html', { title: 'Express' });
+  res.setHeader('Content-Type', 'application/json');
+  res.send(`[{"prod_id": 1}]`);
+});
+
 /*router.get('/transfer-gui', function(req,res, next) {
   res.render('transfer-gui.html', { title: 'Express'});
 });*/
