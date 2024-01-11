@@ -16,17 +16,20 @@ const httpStatusCodes = require('http-status-codes');
 const StatusCodes = httpStatusCodes.StatusCodes;
 const fastJsonPatch = require('fast-json-patch');
 const db = require("../database.js");
+const auth = require("../authorization.js");
 const validator = require('../validator.js');
 
 var router = express.Router();
 
 router.get('/products', async (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("All products");
   const products = await db.Product.findAll();
   res.status(StatusCodes.OK).json(products);
 });
 
 router.get('/products/:id', (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("Product with id " + req.params.id);
   db.Product.findByPk(req.params.id).then(product => {
     if (product) {
@@ -40,6 +43,7 @@ router.get('/products/:id', (req, res, next) => {
 });
 
 router.post('/products', (req, res, next) => {
+  if(!auth.requireAuthStaff(req, res, next)) return;
   console.log("Create product");
   let validationResult = validator.validateProduct(req.body.name, req.body.description, req.body.price, req.body.weight);
   if(validationResult.error) {
@@ -76,6 +80,7 @@ router.post('/products', (req, res, next) => {
 });
 
 router.put('/products/:id', (req, res, next) => {
+  if(!auth.requireAuthStaff(req, res, next)) return;
   console.log("Update product with id " + req.params.id);
   let validationResult = validator.validateProduct(req.body.name, req.body.description, req.body.price, req.body.weight);
   if(validationResult.error) {
@@ -119,18 +124,21 @@ router.put('/products/:id', (req, res, next) => {
 });
 
 router.get('/categories', (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("All categories");
   db.Category.findAll().then(categories => res.status(StatusCodes.OK).json(categories))
   .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
 router.get("/orders", (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("All orders");
   db.Order.findAll().then(orders => res.status(StatusCodes.OK).json(orders))
   .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
 router.post("/orders", (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   // Params: userID, products
   // product is an array of { product_id, quantity }
   console.log("Create order");
@@ -214,7 +222,7 @@ router.post("/orders", (req, res, next) => {
 });
 
 router.get("/orders/:id", (req, res, next) => {
-
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("Order with id " + req.params.id);
   db.Order.findByPk(req.params.id).then(async order => {
     if (order) {
@@ -242,6 +250,7 @@ router.get("/orders/:id", (req, res, next) => {
 });
 
 router.patch("/orders/:id", (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("Update order with id " + req.params.id);
   // Update order using JSON patch or return an error if order does not exist
   db.Order.findByPk(req.params.id).then(async rawOrder => {
@@ -307,6 +316,7 @@ router.patch("/orders/:id", (req, res, next) => {
 });
 
 router.get("/orders/:status/id", async (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("All orders with status " + req.params.status);
   await db.State.findOne({where: {name: req.params.status }}).then(state => {
     let stateId = state.state_id;
@@ -322,12 +332,14 @@ router.get("/orders/:status/id", async (req, res, next) => {
 });
 
 router.get("/status", (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("All statuses");
   db.State.findAll().then(states => res.status(StatusCodes.OK).json(states))
   .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
 router.post("/users", (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   console.log("Create user");
   let validationResult = validator.validateUser(req.body.username, req.body.password, req.body.email, req.body.phone_number);
   if(validationResult.error) {
@@ -348,11 +360,25 @@ router.post("/users", (req, res, next) => {
 });
 
 router.get("/users", (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
   
   console.log("All users");
   
   db.Person.findAll().then(users => res.status(StatusCodes.OK).json(users))
   .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
+});
+
+router.get("/users/:id", (req, res, next) => {
+  if(!auth.requireAuthClient(req, res, next)) return;
+  console.log("User with id " + req.params.id);
+  db.Person.findByPk(req.params.id).then(user => {
+    if (user) {
+      res.status(StatusCodes.OK).json(user);
+    }
+    else {
+      res.status(StatusCodes.NOT_FOUND).json({error: "User does not exist"});
+    }
+  });
 });
 
 
