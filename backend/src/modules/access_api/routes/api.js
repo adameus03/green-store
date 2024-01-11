@@ -308,7 +308,8 @@ router.patch("/orders/:id", (req, res, next) => {
 
 router.get("/orders/:status/id", async (req, res, next) => {
   console.log("All orders with status " + req.params.status);
-  await db.State.findOne({where: {name: req.params.status }}).then(stateId => {
+  await db.State.findOne({where: {name: req.params.status }}).then(state => {
+    let stateId = state.state_id;
     if (stateId) {
       db.Order.findAll({where: {state_id: stateId}}).then(orders => res.status(StatusCodes.OK).json(orders))
       .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: err.message}));
