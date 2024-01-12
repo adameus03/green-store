@@ -28,6 +28,35 @@ const sequelize = new Sequelize({
     //storage: 'testStorageFile'
   });
 //const sequelize = new Sequelize('sqlite::memory:');
+const Person = sequelize.define('Person', {
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+		unique: true,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    username: {
+        type: DataTypes.STRING,
+        allowNull: false,
+		unique: true
+    },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    },
+    phone_number: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    }
+});
+
 const Category = sequelize.define('Category', {
     category_id: {
         type: DataTypes.INTEGER,
@@ -112,17 +141,14 @@ const Order = sequelize.define('Order', {
             key: 'state_id'
         }
     },
-	user_name: {
-		type: DataTypes.STRING,
-		allowNull: false
-	},
-	email: {
-		type: DataTypes.STRING,
-		allowNull: false
-	},
-	phone_number: {
-		type: DataTypes.STRING
-	}
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: Person,
+            key: 'user_id'
+        }
+    }
 });
 
 const Product_Order = sequelize.define('Product_Order', {
@@ -177,6 +203,7 @@ const Product_Order = sequelize.define('Product_Order', {
 
 module.exports = {
     sequelize: sequelize,
+    Person: Person,
     Product: Product,
     Category: Category,
     Product_Order: Product_Order,
