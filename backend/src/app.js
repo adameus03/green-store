@@ -20,6 +20,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
     origin: 'http://localhost:8080',
+    //origin: '*',
     credentials: true
 }));
 //app.use(expressLayouts);
