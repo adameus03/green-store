@@ -137,87 +137,84 @@ router.get("/orders", (req, res, next) => {
   .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
-router.post("/orders", (req, res, next) => {
+router.post("/orders", async (req, res, next) => {
   if(!auth.requireAuthClient(req, res, next)) return;
   // Params: userID, products
   // product is an array of { product_id, quantity }
   console.log("Create order");
   // Check parameters
-  if (!req.body.userID) {
-    res.status(StatusCodes.BAD_REQUEST).json({error: "User ID was not provided"});
+  if (!req.body.user_name) {
+    res.status(StatusCodes.BAD_REQUEST).json({error: "User name was not provided"});
   } else if (!req.body.products) {
     res.status(StatusCodes.BAD_REQUEST).json({error: "Products were not provided"});
   } else if (req.body.products.length == 0) {
     res.status(StatusCodes.BAD_REQUEST).json({error: "Please provide at least one product"});
+  } else if (!req.body.email) {
+	res.status(StatusCodes.BAD_REQUEST).json({error: "User email was not provided"});
+  } else if (!req.body.phone_number) {
+	res.status(StatusCodes.BAD_REQUEST).json({error: "User email was not provided"});
   }
 
   //let validationResult = validator.validateOrder(req.body.userID, req.body.products);
-  // Check if userID exists, if not return error
-  db.Person.findByPk(req.body.userID).then(async user => {
-    if(user) {
-      // Check if products exist, if not return error
-      let productsExist = true;
-      let products = JSON.parse(req.body.products);
+  // Check if products exist, if not return error
+  let productsExist = true;
+  let products = JSON.parse(req.body.products);
+  for(let i = 0; i < products.length; i++) {
+    await db.Product.findByPk(products[i].product_id).then(product => {
+      if(!product) {
+        console.log(`Index [${i}]`);
+        console.log(products[i]);
+        console.log("Product with id " + products[i].product_id + " does not exist");
+        productsExist = false;
+      }
+      // Check if quantity is a positive integer, if not return error
+      /**
+       * @proposition Migrate to validator.js
+       */
+      else if (products[i].quantity <= 0 || !Number.isInteger(products[i].quantity)) { // Not a beautiful solution, but it works
+        console.log(`Index [${i}]`);
+        console.log(products[i]);
+        console.log("Product with id " + products[i].product_id + " has invalid quantity");
+        res.status(StatusCodes.BAD_REQUEST).json({error: "One or more products have invalid quantity"});
+        return; // Exit loop
+      }
+    }).catch(err => {
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
+    });
+    if (!productsExist) {
+      break;
+    }
+  }
+  if(productsExist) {
+    // Create order
+    db.Order.create({
+      user_id: req.body.userID,
+      state_id: 1, // UNCONFIRMED,
+	    user_name: req.body.user_name,
+      email: req.body.email,
+      phone_number: req.body.phone_number
+    }).then(async order => {
+      // Create order items
+      /**
+       * @proposition Replace, so that await is not used
+       */
       for(let i = 0; i < products.length; i++) {
-        await db.Product.findByPk(products[i].product_id).then(product => {
-          if(!product) {
-            console.log(`Index [${i}]`);
-            console.log(products[i]);
-            console.log("Product with id " + products[i].product_id + " does not exist");
-            productsExist = false;
-          }
-          // Check if quantity is a positive integer, if not return error
-          /**
-           * @proposition Migrate to validator.js
-           */
-          else if (products[i].quantity <= 0 || !Number.isInteger(products[i].quantity)) { // Not a beautiful solution, but it works
-            console.log(`Index [${i}]`);
-            console.log(products[i]);
-            console.log("Product with id " + products[i].product_id + " has invalid quantity");
-            res.status(StatusCodes.BAD_REQUEST).json({error: "One or more products have invalid quantity"});
-            return; // Exit loop
-          }
-        }).catch(err => {
-          res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
-        });
-        if (!productsExist) {
-          break;
-        }
-      }
-      if(productsExist) {
-        // Create order
-        db.Order.create({
-          user_id: req.body.userID,
-          state_id: 1 // UNCONFIRMED
-        }).then(async order => {
-          // Create order items
-          /**
-           * @proposition Replace, so that await is not used
-           */
-          for(let i = 0; i < products.length; i++) {
-            await db.Product_Order.create({
-              order_id: order.order_id,
-              product_id: products[i].product_id,
-              quantity: products[i].quantity
-            }).catch(err => {
-              res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
-            });
-          }
-          res.status(StatusCodes.CREATED).json(order);
+        await db.Product_Order.create({
+          order_id: order.order_id,
+          product_id: products[i].product_id,
+          quantity: products[i].quantity
         }).catch(err => {
           res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
         });
       }
-      else {
-        res.status(StatusCodes.BAD_REQUEST).json({error: "One or more products do not exist"});
-      }
-    }
-    else {
-      res.status(StatusCodes.BAD_REQUEST).json({error: "User does not exist"});
-    }
-  }).catch(err => {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
-  });
+      res.status(StatusCodes.CREATED).json(order);
+    }).catch(err => {
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
+    });
+  }
+  else {
+    res.status(StatusCodes.BAD_REQUEST).json({error: "One or more products do not exist"});
+  }
   
 });
 
@@ -257,7 +254,7 @@ router.patch("/orders/:id", (req, res, next) => {
     if(rawOrder) {
       // Get raw order state name
       let beforeUpdateStateName = await db.State.findByPk(rawOrder.state_id).then(state => state.name);
-      let order = { userID: rawOrder.user_id, state: beforeUpdateStateName, products: []};
+      let order = { email: rawOrder.email, user_name: rawOrder.user_name, phone_number: rawOrder.phone_number, state: beforeUpdateStateName, products: []};
       // Get order items
       await db.Product_Order.findAll({where: {order_id: req.params.id}}).then(async orderItems => {
         for(let i = 0; i < orderItems.length; i++) {
@@ -293,13 +290,13 @@ router.patch("/orders/:id", (req, res, next) => {
             res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
           });
         }
-        console.log(`Old user id for order: ${order.userID}`);
-        console.log(`New user id for order: ${mockOrder.userID}`);
         db.Order.update({
           // set current date if this is a confirmation
           confirmation_date: (mockOrder.state_id == 2) ? new Date() : rawOrder.confirmation_date,
           state_id: afterUpdateStateId,
-          user_id: mockOrder.userID
+          user_name: mockOrder.user_name,
+          phone_number: mockOrder.phone_number,
+          email: mockOrder.email
         }, {where: {order_id: req.params.id}}).then(order => {
           res.status(StatusCodes.OK).json({message: "success"});
         }).catch(err => {
@@ -338,48 +335,6 @@ router.get("/status", (req, res, next) => {
   .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
 });
 
-router.post("/users", (req, res, next) => {
-  if(!auth.requireAuthClient(req, res, next)) return;
-  console.log("Create user");
-  let validationResult = validator.validateUser(req.body.username, req.body.password, req.body.email, req.body.phone_number);
-  if(validationResult.error) {
-    res.status(StatusCodes.BAD_REQUEST).json({error: validationResult.error.details[0].message});
-  }
-  else {
-    db.Person.create({
-      username: req.body.username,
-      password: req.body.password,
-      email: req.body.email,
-      phone_number: req.body.phone_number
-    }).then(user => {
-      res.status(StatusCodes.CREATED).json(user);
-    }).catch(err => {
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message});
-    });
-  }
-});
-
-router.get("/users", (req, res, next) => {
-  if(!auth.requireAuthClient(req, res, next)) return;
-  
-  console.log("All users");
-  
-  db.Person.findAll().then(users => res.status(StatusCodes.OK).json(users))
-  .catch(err => res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: err.message}));
-});
-
-router.get("/users/:id", (req, res, next) => {
-  if(!auth.requireAuthClient(req, res, next)) return;
-  console.log("User with id " + req.params.id);
-  db.Person.findByPk(req.params.id).then(user => {
-    if (user) {
-      res.status(StatusCodes.OK).json(user);
-    }
-    else {
-      res.status(StatusCodes.NOT_FOUND).json({error: "User does not exist"});
-    }
-  });
-});
 
 
 
