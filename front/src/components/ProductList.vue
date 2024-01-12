@@ -41,7 +41,7 @@
 
 	const filteredProducts = computed(() => {
 		return products.value.filter(product => {
-			return (filterCategories.value.length == 0 ? true : filterCategories.value.map(c => c.category_id).includes(product.category_id)) && product.name.includes(filterName.value);
+			return (filterCategories.value.length == 0 ? true : filterCategories.value.includes(product.category_id)) && product.name.includes(filterName.value);
 		}).map(product => {
 			const category = categories.value.find(category => {
 				return category.category_id == product.category_id;
@@ -99,7 +99,7 @@
 			<div id="filterCategory">
 				Category:
 				<template v-for="category of categories" :key="category.category_id">
-					<input type="checkbox" :name="category.name" :id="category.name" :value="category.name" v-model="filterCategories">
+					<input type="checkbox" :name="category.name" :id="category.name" :value="category.category_id" v-model="filterCategories">
 					<label :for="category.name"> {{ category.name }} </label>
 				</template>
 			</div>
